@@ -17,7 +17,7 @@ download_centos_images() {
     rm -rf syslinux-6.03 || { echo "Failed"; exit 1; } # Clean the untarred.
     echo "Done"
 
-    printf "Downloading CentOS 7 PXE vmlinuz image ... "
+    printf "Downloading CentOS 7 PXE vmlinuz image($cluster_desc_centos_version) ... "
     cd $BSROOT/tftpboot
     mkdir -p $BSROOT/tftpboot/CentOS7
     wget --quiet -c -N -P $BSROOT/tftpboot/CentOS7 http://mirrors.163.com/centos/$cluster_desc_centos_version/os/x86_64/images/pxeboot/initrd.img  || { echo "Failed"; exit 1; }
@@ -86,25 +86,25 @@ zerombr
 clearpart --all
 # Disk partitioning information
 part / --fstype="xfs" --grow --ondisk=sda --size=1
-part swap --fstype="swap" --ondisk=sda --size=8000
+#part swap --fstype="swap" --ondisk=sda --size=8000
 
-repo --name=cloud-init --baseurl=http://$BS_IP/static/CentOS7/repo/cloudinit/
+#repo --name=cloud-init --baseurl=http://$BS_IP/static/CentOS7/repo/cloudinit/
 network --onboot on --bootproto dhcp --noipv6
 
 %packages # --ignoremissing
 @Base
 @Core
-cloud-init
-docker-engine
-etcd
-flannel
+#cloud-init
+#docker-engine
+#etcd
+#flannel
 make
 kernel-devel
 gcc
 wget
 #update kernel
-kernel-lt
-kernel-lt-devel
+#kernel-lt
+#kernel-lt-devel
 %end
 
 
@@ -113,6 +113,9 @@ kernel-lt-devel
 %end
 
 %post --log=/root/ks-post-provision.log
+
+wget  -P /root http://$BS_IP/static/CentOS7/install-extra.sh
+bash -x /root/install-extra.sh >> /root/install-extra.log
 
 wget -O /root/post-process.sh http://$BS_IP/centos/post-script/00-00-00-00-00-00
 bash -x /root/post-process.sh
@@ -134,10 +137,13 @@ EOF
 generate_post_cloudinit_script() {
     printf "Generating post cloudinit script ... "
     mkdir -p $BSROOT/html/static/CentOS7
-    cat > $BSROOT/html/static/CentOS7/post_cloudinit_provision.sh <<'EOF'
+    cat > $BSROOT/html/static/CentOS7/post_cloudinit_provision.sh <<EOF
 #!/bin/bash
+bootstrapper_ip=$BS_IP
+EOF
+    cat >> $BSROOT/html/static/CentOS7/post_cloudinit_provision.sh <<'EOF'
 default_iface=$(awk '$2 == 00000000 { print $1  }' /proc/net/route | uniq)
-bootstrapper_ip=$(grep nameserver /etc/resolv.conf|cut -d " " -f2)
+#bootstrapper_ip=$(grep nameserver /etc/resolv.conf|cut -d " " -f2)
 printf "Default interface: ${default_iface}\n"
 default_iface=`echo ${default_iface} | awk '{ print $1 }'`
 
@@ -165,6 +171,39 @@ systemctl stop  NetworkManager
 systemctl disable  NetworkManager
 systemctl enable docker
 EOF
+
+    cat > $BSROOT/html/static/CentOS7/install-extra.sh <<EOF
+
+
+rm -rf /etc/yum.repos.d/CentOS*
+
+#!/bin/bash
+cat > /etc/yum.repos.d/cloud-init.repo <<eof
+[Cloud-init]
+name=Cloud init Packages for Enterprise Linux 7
+baseurl=http://$BS_IP/static/CentOS7/repo/cloudinit/
+enable=1
+gpgcheck=0
+eof
+
+cat >/etc/yum.repos.d/Local.repo <<eof
+[LocalRepo]
+name=Local Repository
+baseurl=http://$BS_IP/static/CentOS7/dvd_content/
+enabled=1
+gpgcheck=0
+eof
+
+yum -y remove audit-2.6.5
+
+yum -y install cloud-init docker-engine etcd flannel kernel-lt kernel-lt-devel
+
+yum -y install audit
+
+swapoff -a
+
+EOF
+
     echo "Done"
 
 }
@@ -194,7 +233,7 @@ EOF
   docker run --rm -it \
              --volume $BSROOT:/bsroot \
              centos:$cluster_desc_centos_version \
-             sh -c  'mv /bsroot/docker.repo  /etc/yum.repos.d/ && \
+             sh -c  'mv /bsroot/docker.repo  /etc/yum.repos.d/ &&  yum -y remove audit && \
              /usr/bin/yum -y install epel-release yum-utils createrepo  && \
              /usr/bin/rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org && \
              /usr/bin/rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm && \
@@ -202,7 +241,7 @@ EOF
              /usr/bin/yumdownloader  --enablerepo=elrepo-kernel --resolve \
              --destdir=/bsroot/html/static/CentOS7/repo/cloudinit cloud-init \
              docker-engine etcd flannel \
-             kernel-lt kernel-lt-devel && \
+             kernel-lt kernel-lt-devel audit && \
              /usr/bin/createrepo -v  /bsroot/html/static/CentOS7/repo/cloudinit/' || \
              { echo 'Failed to generate  cloud-init repo !' ; exit 1; }
 

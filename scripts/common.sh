@@ -207,7 +207,8 @@ download_k8s_images() {
     # printf "Downloading kubelet ${hyperkube_version} ... "
     # wget --quiet -c -N -O $BSROOT/html/static/kubelet https://storage.googleapis.com/kubernetes-release/release/$hyperkube_version/bin/linux/amd64/kubelet
     printf "Downloading kubelet ... "
-    wget --quiet -c -N -O $BSROOT/html/static/kubelet https://dl.dropboxusercontent.com/u/27178121/kubelet.v1.6.0/kubelet
+    wget --quiet -c -N -O $BSROOT/html/static/kubelet https://storage.googleapis.com/kubernetes-release/release/v1.6.0/bin/linux/amd64/kubelet
+    #wget --quiet -c -N -O $BSROOT/html/static/kubelet https://dl.dropboxusercontent.com/u/27178121/kubelet.v1.6.0/kubelet
     echo "Done"
     
     # setup-network-environment will fetch the default system IP infomation
@@ -268,7 +269,9 @@ generate_tls_assets() {
 
 prepare_setup_kubectl() {
     printf "Downloading kubectl ... "
-    wget --quiet -c -N -O $BSROOT/html/static/kubectl https://dl.dropboxusercontent.com/u/27178121/kubelet.v1.6.0/kubectl || { echo "Failed"; exit 1; }
+    #wget --quiet -c -N -O $BSROOT/html/static/kubectl https://dl.dropboxusercontent.com/u/27178121/kubelet.v1.6.0/kubectl || { echo "Failed"; exit 1; }
+    wget --quiet -c -N -O $BSROOT/html/static/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.6.0/bin/linux/amd64/kubectl
+
     echo "Done"
 
     printf "Preparing setup kubectl ... "

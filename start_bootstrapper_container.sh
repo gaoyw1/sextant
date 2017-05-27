@@ -65,7 +65,7 @@ for DOCKER_IMAGE in $(set | grep '^cluster_desc_images_' | grep -o '".*"' | sed 
   echo "Done."
 done
 
-if [[ $cluster_desc_set_ntp == " y" ]]; then
+#if [[ $cluster_desc_set_ntp == " y" ]]; then
 docker rm -f ntpserver > /dev/null 2>&1
 NTP_DOCKER_IMAGE=$cluster_desc_dockerdomain:5000/${cluster_desc_images_ntp}
 docker run -d \
@@ -73,5 +73,5 @@ docker run -d \
        --net=host \
        --privileged \
        $NTP_DOCKER_IMAGE || { echo "Failed"; exit -1; }
-fi
+#fi
 
